@@ -62,26 +62,24 @@ def test_list_skus_seeded(client):
 def test_reserve_unknown_over_zero(client):
     assert client.post("/v1/stock/reserve", json={"sku": "NOPE", "qty": 1}).status_code == 404
     assert (
-        client.post("/v1/stock/reserve", json={"sku": "WIDGET-1", "qty": 999999}).status_code
-        == 409
+        client.post("/v1/stock/reserve", json={"sku": "WIDGET-1", "qty": 999999}).status_code == 409
     )
     assert client.post("/v1/stock/reserve", json={"sku": "WIDGET-1", "qty": 0}).status_code == 422
     assert client.post("/v1/stock/reserve", json={"sku": "WIDGET-1", "qty": 1}).status_code == 200
 
 
 def test_empty_and_malformed_body(client):
-    assert client.post("/v1/stock/reserve", content=b"", headers={"content-type": "application/json"}).status_code in {
+    assert client.post(
+        "/v1/stock/reserve", content=b"", headers={"content-type": "application/json"}
+    ).status_code in {
         400,
         422,
     }
-    assert (
-        client.post(
-            "/v1/stock/reserve",
-            content=b"{not-json",
-            headers={"content-type": "application/json"},
-        ).status_code
-        in {400, 422}
-    )
+    assert client.post(
+        "/v1/stock/reserve",
+        content=b"{not-json",
+        headers={"content-type": "application/json"},
+    ).status_code in {400, 422}
 
 
 def test_release_unknown_and_double_release(client):

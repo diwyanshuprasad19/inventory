@@ -58,7 +58,9 @@ class StockLevel(Base):
     __table_args__ = (UniqueConstraint("sku", "warehouse_id", name="uq_stock_sku_wh"),)
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
     sku: Mapped[str] = mapped_column(ForeignKey("skus.sku"), nullable=False, index=True)
-    warehouse_id: Mapped[str] = mapped_column(ForeignKey("warehouses.id"), nullable=False, index=True)
+    warehouse_id: Mapped[str] = mapped_column(
+        ForeignKey("warehouses.id"), nullable=False, index=True
+    )
     quantity: Mapped[int] = mapped_column(Integer, default=0)
     reserved: Mapped[int] = mapped_column(Integer, default=0)
     sku_row: Mapped[Sku] = relationship(back_populates="stocks")
@@ -73,7 +75,9 @@ class Reservation(Base):
     __tablename__ = "reservations"
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
     sku: Mapped[str] = mapped_column(ForeignKey("skus.sku"), nullable=False, index=True)
-    warehouse_id: Mapped[str] = mapped_column(ForeignKey("warehouses.id"), nullable=False, index=True)
+    warehouse_id: Mapped[str] = mapped_column(
+        ForeignKey("warehouses.id"), nullable=False, index=True
+    )
     qty: Mapped[int] = mapped_column(Integer, nullable=False)
     status: Mapped[str] = mapped_column(String(32), default="held", index=True)
     order_ref: Mapped[str | None] = mapped_column(String(64), index=True)
