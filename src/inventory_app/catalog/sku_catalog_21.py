@@ -22,7 +22,7 @@ ITEMS_21: list[CatalogItem] = [
         category=["Electronics", "Home", "Sports", "Office", "Auto"][21 % 5],
         unit_cost_cents=100 + 21 * 10 + j * 3,
         default_qty=10 + (j % 50),
-        tags=(f"part-21", f"batch-{j}", "demo"),
+        tags=("part-21", f"batch-{j}", "demo"),
     )
     for j in range(1, 41)
 ]
