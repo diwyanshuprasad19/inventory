@@ -103,10 +103,12 @@ def adjust(db: Session, sku: str, warehouse_code: str, delta: int, reason: str):
 def transfer(db: Session, sku: str, from_code: str, to_code: str, qty: int):
     if qty <= 0:
         raise InventoryError("qty must be > 0")
+    if not db.get(models.Sku, sku):
+        raise InventoryError(f"unknown sku {sku}", 404)
     src = get_warehouse_by_code(db, from_code)
     dst = get_warehouse_by_code(db, to_code)
     if src.id == dst.id:
-        raise InventoryError("same warehouse")
+        raise InventoryError("same warehouse", 400)
     s_stock = get_or_create_stock(db, sku, src.id)
     if s_stock.available < qty:
         raise InventoryError("insufficient stock for transfer", 409)
