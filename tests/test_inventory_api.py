@@ -9,8 +9,8 @@ from sqlalchemy.pool import StaticPool
 # Use in-memory sqlite for unit tests
 os.environ["DATABASE_URL"] = "sqlite+pysqlite:///:memory:"
 
-from inventory_app.db import Base, get_db
 from inventory_app.app import create_app
+from inventory_app.db import Base, get_db
 from inventory_app.seed import seed_demo
 
 

@@ -25,8 +25,9 @@ try:
         telemetry_status,
     )
     from distributed_tracing.httpx_otel import instrument_httpx
-    from distributed_tracing.sqlalchemy_otel import instrument_sqlalchemy
     from distributed_tracing.logging_otel import configure_logging_otel
+    from distributed_tracing.sqlalchemy_otel import instrument_sqlalchemy
+
     from inventory_app.db import engine as _engine
 except ImportError:  # pragma: no cover
     configure_tracing = None
@@ -46,9 +47,7 @@ def create_app() -> FastAPI:
     app = FastAPI(title="Inventory Service", version="0.2.0")
     if configure_tracing:
         os.environ.setdefault("OTEL_SERVICE_NAME", settings.otel_service_name)
-        os.environ.setdefault(
-            "OTEL_EXPORTER_OTLP_ENDPOINT", settings.otel_exporter_otlp_endpoint
-        )
+        os.environ.setdefault("OTEL_EXPORTER_OTLP_ENDPOINT", settings.otel_exporter_otlp_endpoint)
         configure_tracing(settings.otel_service_name)
         configure_logging_otel()
         instrument_httpx()
@@ -128,9 +127,7 @@ def create_app() -> FastAPI:
 
     @app.get("/v1/stock/{sku}", response_model=list[schemas.StockOut])
     def stock_sku(sku: str, db: Session = Depends(get_db)):
-        rows = db.scalars(
-            select(models.StockLevel).where(models.StockLevel.sku == sku)
-        ).all()
+        rows = db.scalars(select(models.StockLevel).where(models.StockLevel.sku == sku)).all()
         if not rows:
             raise HTTPException(404, "not found")
         return [
@@ -171,9 +168,7 @@ def create_app() -> FastAPI:
     @app.post("/v1/stock/adjust", response_model=schemas.StockOut)
     def adjust(body: schemas.AdjustIn, db: Session = Depends(get_db)):
         try:
-            stock = services.adjust(
-                db, body.sku, body.warehouse_code, body.delta, body.reason
-            )
+            stock = services.adjust(db, body.sku, body.warehouse_code, body.delta, body.reason)
         except services.InventoryError as e:
             raise HTTPException(e.code, str(e)) from e
         return schemas.StockOut(
@@ -238,9 +233,7 @@ def create_app() -> FastAPI:
     # backward-compatible aliases used by orders client
     @app.get("/stock/{sku}")
     def legacy_stock(sku: str, db: Session = Depends(get_db)):
-        rows = db.scalars(
-            select(models.StockLevel).where(models.StockLevel.sku == sku)
-        ).all()
+        rows = db.scalars(select(models.StockLevel).where(models.StockLevel.sku == sku)).all()
         if not rows:
             return {"error": "not_found", "sku": sku}
         total_q = sum(r.quantity for r in rows)
@@ -275,14 +268,14 @@ app = create_app()
 
 
 def main() -> None:
-            import uvicorn
+    import uvicorn
 
-            uvicorn.run(
-                app,
-                host="0.0.0.0",
-                port=int(os.getenv("PORT", str(settings.port))),
-                reload=False,
-            )
+    uvicorn.run(
+        app,
+        host="0.0.0.0",
+        port=int(os.getenv("PORT", str(settings.port))),
+        reload=False,
+    )
 
 
 if __name__ == "__main__":

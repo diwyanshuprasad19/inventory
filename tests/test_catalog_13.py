@@ -1,6 +1,4 @@
-from inventory_app.catalog.sku_catalog_13 import (
-    summarize_13, all_skus_13, validate_cost_13
-)
+from inventory_app.catalog.sku_catalog_13 import all_skus_13, summarize_13, validate_cost_13
 
 
 def test_catalog_13_size():

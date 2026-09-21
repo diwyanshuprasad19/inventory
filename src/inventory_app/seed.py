@@ -5,7 +5,6 @@ from sqlalchemy.orm import Session
 
 from inventory_app import models
 
-
 DEMO_SKUS = [
     ("WIDGET-1", "Blue Widget", 100, 1200),
     ("WIDGET-2", "Red Widget", 50, 1500),

@@ -38,7 +38,7 @@ class Warehouse(Base):
     name: Mapped[str] = mapped_column(String(256), nullable=False)
     region: Mapped[str] = mapped_column(String(64), default="US")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-    stocks: Mapped[list["StockLevel"]] = relationship(back_populates="warehouse")
+    stocks: Mapped[list[StockLevel]] = relationship(back_populates="warehouse")
 
 
 class Sku(Base):
@@ -50,7 +50,7 @@ class Sku(Base):
     unit_cost_cents: Mapped[int] = mapped_column(Integer, default=0)
     status: Mapped[str] = mapped_column(String(32), default="active")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-    stocks: Mapped[list["StockLevel"]] = relationship(back_populates="sku_row")
+    stocks: Mapped[list[StockLevel]] = relationship(back_populates="sku_row")
 
 
 class StockLevel(Base):

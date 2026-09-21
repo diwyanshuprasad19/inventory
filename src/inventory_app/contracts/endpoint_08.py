@@ -26,7 +26,7 @@ CONTRACT_08 = {
         "case-8-16",
         "case-8-17",
         "case-8-18",
-        "case-8-19"
+        "case-8-19",
     ],
 }
 

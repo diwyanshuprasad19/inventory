@@ -94,11 +94,7 @@ def adjust(db: Session, sku: str, warehouse_code: str, delta: int, reason: str):
     if new_q < 0 or new_q < stock.reserved:
         raise InventoryError("adjust would make stock inconsistent", 409)
     stock.quantity = new_q
-    db.add(
-        models.StockMovement(
-            sku=sku, warehouse_id=wh.id, delta=delta, reason=reason
-        )
-    )
+    db.add(models.StockMovement(sku=sku, warehouse_id=wh.id, delta=delta, reason=reason))
     db.commit()
     db.refresh(stock)
     return stock

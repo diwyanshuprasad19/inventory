@@ -12,7 +12,7 @@ def min_reorder_level_20(sku: str) -> int:
 
 
 def allow_negative_adjust_20() -> bool:
-    return true
+    return True
 
 
 def warehouse_capacity_20(code: str) -> int:
