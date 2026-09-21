@@ -153,10 +153,13 @@ def test_sku_crud_and_stock_by_sku(client):
         json={"sku": "TEST-SKU-X", "name": "Test SKU", "unit_cost_cents": 10},
     )
     assert created.status_code == 201
-    assert client.post(
-        "/v1/skus",
-        json={"sku": "TEST-SKU-X", "name": "Dup"},
-    ).status_code == 409
+    assert (
+        client.post(
+            "/v1/skus",
+            json={"sku": "TEST-SKU-X", "name": "Dup"},
+        ).status_code
+        == 409
+    )
     got = client.get("/v1/skus/TEST-SKU-X")
     assert got.status_code == 200
     assert got.json()["name"] == "Test SKU"
@@ -204,24 +207,30 @@ def test_adjust_transfer_happy_and_edges(client):
     )
     assert xfer.status_code == 200
     assert "from" in xfer.json() and "to" in xfer.json()
-    assert client.post(
-        "/v1/stock/transfer",
-        json={
-            "sku": "NOPE",
-            "from_warehouse": "WH-EAST",
-            "to_warehouse": "WH-WEST",
-            "qty": 1,
-        },
-    ).status_code == 404
-    assert client.post(
-        "/v1/stock/transfer",
-        json={
-            "sku": "WIDGET-1",
-            "from_warehouse": "WH-EAST",
-            "to_warehouse": "WH-WEST",
-            "qty": 999999,
-        },
-    ).status_code == 409
+    assert (
+        client.post(
+            "/v1/stock/transfer",
+            json={
+                "sku": "NOPE",
+                "from_warehouse": "WH-EAST",
+                "to_warehouse": "WH-WEST",
+                "qty": 1,
+            },
+        ).status_code
+        == 404
+    )
+    assert (
+        client.post(
+            "/v1/stock/transfer",
+            json={
+                "sku": "WIDGET-1",
+                "from_warehouse": "WH-EAST",
+                "to_warehouse": "WH-WEST",
+                "qty": 999999,
+            },
+        ).status_code
+        == 409
+    )
 
 
 def test_reserve_with_warehouse_and_legacy_reserve(client):
@@ -240,11 +249,12 @@ def test_reserve_with_warehouse_and_legacy_reserve(client):
 
 def test_get_db_generator_and_service_create_stock():
     """Exercise get_db finally-close and get_or_create_stock create path."""
-    from inventory_app import models, services
-    from inventory_app.db import Base, get_db
     from sqlalchemy import create_engine
     from sqlalchemy.orm import sessionmaker
     from sqlalchemy.pool import StaticPool
+
+    from inventory_app import models, services
+    from inventory_app.db import Base, get_db
 
     engine = create_engine(
         "sqlite+pysqlite:///:memory:",
@@ -271,11 +281,12 @@ def test_get_db_generator_and_service_create_stock():
 
 
 def test_reserve_no_warehouses_raises():
-    from inventory_app import models, services
-    from inventory_app.db import Base
     from sqlalchemy import create_engine
     from sqlalchemy.orm import sessionmaker
     from sqlalchemy.pool import StaticPool
+
+    from inventory_app import models, services
+    from inventory_app.db import Base
 
     engine = create_engine(
         "sqlite+pysqlite:///:memory:",
@@ -294,13 +305,14 @@ def test_reserve_no_warehouses_raises():
 
 
 def test_transfer_qty_nonpositive_and_main(monkeypatch):
-    from inventory_app import models, services
-    from inventory_app.db import Base
+    import uvicorn
     from sqlalchemy import create_engine
     from sqlalchemy.orm import sessionmaker
     from sqlalchemy.pool import StaticPool
+
     import inventory_app.app as app_mod
-    import uvicorn
+    from inventory_app import models, services
+    from inventory_app.db import Base
 
     engine = create_engine(
         "sqlite+pysqlite:///:memory:",
