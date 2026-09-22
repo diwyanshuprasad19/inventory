@@ -19,18 +19,32 @@ def get_warehouse_by_code(db: Session, code: str) -> models.Warehouse:
     return wh
 
 
-def get_or_create_stock(db: Session, sku: str, warehouse_id: str) -> models.StockLevel:
-    row = db.scalar(
-        select(models.StockLevel).where(
-            models.StockLevel.sku == sku,
-            models.StockLevel.warehouse_id == warehouse_id,
-        )
+def get_or_create_stock(
+    db: Session, sku: str, warehouse_id: str, *, for_update: bool = False
+) -> models.StockLevel:
+    stmt = select(models.StockLevel).where(
+        models.StockLevel.sku == sku,
+        models.StockLevel.warehouse_id == warehouse_id,
     )
+    if for_update:
+        stmt = stmt.with_for_update()
+    row = db.scalar(stmt)
     if row:
         return row
     row = models.StockLevel(sku=sku, warehouse_id=warehouse_id, quantity=0, reserved=0)
     db.add(row)
     db.flush()
+    if for_update:
+        # Re-select under lock after create so concurrent reserves serialize.
+        locked = db.scalar(
+            select(models.StockLevel)
+            .where(
+                models.StockLevel.sku == sku,
+                models.StockLevel.warehouse_id == warehouse_id,
+            )
+            .with_for_update()
+        )
+        return locked or row
     return row
 
 
@@ -44,7 +58,7 @@ def reserve(db: Session, sku: str, qty: int, warehouse_code: str | None, order_r
         wh = db.scalars(select(models.Warehouse).limit(1)).first()
         if not wh:
             raise InventoryError("no warehouses", 409)
-    stock = get_or_create_stock(db, sku, wh.id)
+    stock = get_or_create_stock(db, sku, wh.id, for_update=True)
     if stock.available < qty:
         raise InventoryError("insufficient stock", 409)
     stock.reserved += qty
@@ -103,10 +117,12 @@ def adjust(db: Session, sku: str, warehouse_code: str, delta: int, reason: str):
 def transfer(db: Session, sku: str, from_code: str, to_code: str, qty: int):
     if qty <= 0:
         raise InventoryError("qty must be > 0")
+    if not db.get(models.Sku, sku):
+        raise InventoryError(f"unknown sku {sku}", 404)
     src = get_warehouse_by_code(db, from_code)
     dst = get_warehouse_by_code(db, to_code)
     if src.id == dst.id:
-        raise InventoryError("same warehouse")
+        raise InventoryError("same warehouse", 400)
     s_stock = get_or_create_stock(db, sku, src.id)
     if s_stock.available < qty:
         raise InventoryError("insufficient stock for transfer", 409)
