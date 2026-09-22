@@ -338,3 +338,40 @@ def test_transfer_qty_nonpositive_and_main(monkeypatch):
     monkeypatch.setattr(uvicorn, "run", fake_run)
     app_mod.main()
     assert ran.get("ok") is True
+
+
+def test_legacy_release_and_locked_reserve(client):
+    reserved = client.post("/reserve", json={"sku": "WIDGET-1", "qty": 1})
+    assert reserved.status_code == 200
+    rid = reserved.json()["reservation_id"]
+    released = client.post("/release", json={"reservation_id": rid})
+    assert released.status_code == 200
+    assert released.json()["status"] == "released"
+    bad = client.post("/release", json={"reservation_id": "missing"})
+    assert bad.status_code == 404
+
+
+def test_get_or_create_stock_for_update_create_path():
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+    from sqlalchemy.pool import StaticPool
+
+    from inventory_app import models, services
+    from inventory_app.db import Base
+
+    engine = create_engine(
+        "sqlite+pysqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    Base.metadata.create_all(engine)
+    Session = sessionmaker(bind=engine, autoflush=False, autocommit=False)
+    db = Session()
+    wh = models.Warehouse(code="WH-X", name="X")
+    db.add(wh)
+    db.add(models.Sku(sku="NEW-LOCK", name="n"))
+    db.commit()
+    db.refresh(wh)
+    stock = services.get_or_create_stock(db, "NEW-LOCK", wh.id, for_update=True)
+    assert stock.sku == "NEW-LOCK"
+    db.close()

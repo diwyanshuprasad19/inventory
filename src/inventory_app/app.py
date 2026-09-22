@@ -261,6 +261,14 @@ def create_app() -> FastAPI:
             "reservation_id": res.id,
         }
 
+    @app.post("/release")
+    def legacy_release(body: schemas.ReleaseIn, db: Session = Depends(get_db)):
+        try:
+            res = services.release(db, body.reservation_id)
+        except services.InventoryError as e:
+            raise HTTPException(e.code, str(e)) from e
+        return {"reservation_id": res.id, "status": res.status}
+
     return app
 
 
