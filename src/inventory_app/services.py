@@ -77,13 +77,25 @@ def reserve(db: Session, sku: str, qty: int, warehouse_code: str | None, order_r
     return res, stock
 
 
-def release(db: Session, reservation_id: str):
-    res = db.get(models.Reservation, reservation_id)
+def _get_reservation_for_update(db: Session, reservation_id: str) -> models.Reservation:
+    res = db.scalar(
+        select(models.Reservation)
+        .where(models.Reservation.id == reservation_id)
+        .with_for_update()
+    )
     if not res:
         raise InventoryError("reservation not found", 404)
+    return res
+
+
+def release(db: Session, reservation_id: str):
+    res = _get_reservation_for_update(db, reservation_id)
+    if res.status == "released":
+        # Idempotent: already released is OK for cancel/retry paths.
+        return res
     if res.status != "held":
         raise InventoryError("reservation not held", 409)
-    stock = get_or_create_stock(db, res.sku, res.warehouse_id)
+    stock = get_or_create_stock(db, res.sku, res.warehouse_id, for_update=True)
     stock.reserved = max(0, stock.reserved - res.qty)
     res.status = "released"
     db.add(
@@ -99,11 +111,37 @@ def release(db: Session, reservation_id: str):
     return res
 
 
+def consume(db: Session, reservation_id: str):
+    """Finalize a held reservation into a sale: drop qty + reserved together."""
+    res = _get_reservation_for_update(db, reservation_id)
+    if res.status == "consumed":
+        return res
+    if res.status != "held":
+        raise InventoryError("reservation not held", 409)
+    stock = get_or_create_stock(db, res.sku, res.warehouse_id, for_update=True)
+    if stock.quantity < res.qty or stock.reserved < res.qty:
+        raise InventoryError("stock inconsistent for consume", 409)
+    stock.quantity -= res.qty
+    stock.reserved = max(0, stock.reserved - res.qty)
+    res.status = "consumed"
+    db.add(
+        models.StockMovement(
+            sku=res.sku,
+            warehouse_id=res.warehouse_id,
+            delta=-res.qty,
+            reason="consume",
+            meta=reservation_id,
+        )
+    )
+    db.commit()
+    return res
+
+
 def adjust(db: Session, sku: str, warehouse_code: str, delta: int, reason: str):
     if not db.get(models.Sku, sku):
         raise InventoryError(f"unknown sku {sku}", 404)
     wh = get_warehouse_by_code(db, warehouse_code)
-    stock = get_or_create_stock(db, sku, wh.id)
+    stock = get_or_create_stock(db, sku, wh.id, for_update=True)
     new_q = stock.quantity + delta
     if new_q < 0 or new_q < stock.reserved:
         raise InventoryError("adjust would make stock inconsistent", 409)
@@ -123,11 +161,15 @@ def transfer(db: Session, sku: str, from_code: str, to_code: str, qty: int):
     dst = get_warehouse_by_code(db, to_code)
     if src.id == dst.id:
         raise InventoryError("same warehouse", 400)
-    s_stock = get_or_create_stock(db, sku, src.id)
+    # Lock both rows in stable id order to avoid deadlocks under concurrent transfers.
+    first_id, second_id = sorted([src.id, dst.id])
+    get_or_create_stock(db, sku, first_id, for_update=True)
+    get_or_create_stock(db, sku, second_id, for_update=True)
+    s_stock = get_or_create_stock(db, sku, src.id, for_update=True)
     if s_stock.available < qty:
         raise InventoryError("insufficient stock for transfer", 409)
     s_stock.quantity -= qty
-    d_stock = get_or_create_stock(db, sku, dst.id)
+    d_stock = get_or_create_stock(db, sku, dst.id, for_update=True)
     d_stock.quantity += qty
     db.add(models.StockMovement(sku=sku, warehouse_id=src.id, delta=-qty, reason="transfer_out"))
     db.add(models.StockMovement(sku=sku, warehouse_id=dst.id, delta=qty, reason="transfer_in"))

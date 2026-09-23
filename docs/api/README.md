@@ -26,11 +26,14 @@ Auth: **Not explicitly enforced in current implementation** (all listed routes a
 | GET | `/v1/stock/{sku}` | Stock for SKU | Public | [stock.md](stock.md) |
 | POST | `/v1/stock/reserve` | Reserve stock | Public | [stock.md](stock.md) |
 | POST | `/v1/stock/release` | Release reservation | Public | [stock.md](stock.md) |
+| POST | `/v1/stock/consume` | Consume reservation (fulfill) | Public | [stock.md](stock.md) |
 | POST | `/v1/stock/adjust` | Adjust quantity | Public | [stock.md](stock.md) |
 | POST | `/v1/stock/transfer` | Transfer between warehouses | Public | [stock.md](stock.md) |
 | GET | `/v1/reservations` | List reservations (limit 500) | Public | [stock.md](stock.md) |
 | GET | `/v1/movements` | Stock movements (limit 500) | Public | [stock.md](stock.md) |
 | GET | `/stock/{sku}` | Legacy stock aggregate | Public | [legacy.md](legacy.md) |
 | POST | `/reserve` | Legacy reserve | Public | [legacy.md](legacy.md) |
+| POST | `/release` | Legacy release | Public | [legacy.md](legacy.md) |
+| POST | `/consume` | Legacy consume | Public | [legacy.md](legacy.md) |
 
 Index covers routes registered in `src/inventory_app/app.py` as of the documentation pass.

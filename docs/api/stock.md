@@ -78,7 +78,22 @@ Schemas: `ReserveIn`, `ReleaseIn`, `AdjustIn`, `TransferIn`, `StockOut`, … · 
 `POST /v1/stock/release` · body `ReleaseIn` `{ "reservation_id": "<uuid>" }` · `services.release`
 
 **Success `200`:** `{"reservation_id","status"}` with status `released`.  
-**404** reservation not found · **409** reservation not `held`.
+Idempotent if already `released` (cancel/retry). **409** if status is `consumed` or other non-held.
+
+Locks reservation + stock rows (`FOR UPDATE`).
+
+---
+
+## Consume reservation (fulfill / ship)
+
+`POST /v1/stock/consume` · body `ReleaseIn` · `services.consume`
+
+Finalizes a held reservation: decrements `quantity` and `reserved`, status → `consumed`.  
+Idempotent if already `consumed`. Legacy alias: `POST /consume`.
+
+**Errors:** 404 missing · 409 not held / stock inconsistent
+
+---**404** reservation not found · **409** reservation not `held`.
 
 ---
 

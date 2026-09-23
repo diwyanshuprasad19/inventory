@@ -165,6 +165,14 @@ def create_app() -> FastAPI:
             raise HTTPException(e.code, str(e)) from e
         return {"reservation_id": res.id, "status": res.status}
 
+    @app.post("/v1/stock/consume")
+    def consume(body: schemas.ReleaseIn, db: Session = Depends(get_db)):
+        try:
+            res = services.consume(db, body.reservation_id)
+        except services.InventoryError as e:
+            raise HTTPException(e.code, str(e)) from e
+        return {"reservation_id": res.id, "status": res.status}
+
     @app.post("/v1/stock/adjust", response_model=schemas.StockOut)
     def adjust(body: schemas.AdjustIn, db: Session = Depends(get_db)):
         try:
@@ -265,6 +273,14 @@ def create_app() -> FastAPI:
     def legacy_release(body: schemas.ReleaseIn, db: Session = Depends(get_db)):
         try:
             res = services.release(db, body.reservation_id)
+        except services.InventoryError as e:
+            raise HTTPException(e.code, str(e)) from e
+        return {"reservation_id": res.id, "status": res.status}
+
+    @app.post("/consume")
+    def legacy_consume(body: schemas.ReleaseIn, db: Session = Depends(get_db)):
+        try:
+            res = services.consume(db, body.reservation_id)
         except services.InventoryError as e:
             raise HTTPException(e.code, str(e)) from e
         return {"reservation_id": res.id, "status": res.status}

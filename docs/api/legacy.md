@@ -18,3 +18,11 @@ If no stock rows: **still HTTP 200** with `{"error":"not_found","sku":"<sku>"}` 
 `POST /reserve` · body `ReserveIn` · same service as `/v1/stock/reserve`
 
 **Success `200`:** includes `reservation_id`, `sku`, `reserved`, `available`, `status`.
+
+## Legacy release
+
+`POST /release` · body `ReleaseIn` · same as `/v1/stock/release`
+
+## Legacy consume
+
+`POST /consume` · body `ReleaseIn` · same as `/v1/stock/consume` (used by orders on ship)
