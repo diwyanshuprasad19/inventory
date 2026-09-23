@@ -90,7 +90,72 @@ def test_release_unknown_and_double_release(client):
     rid = held.json()["reservation_id"]
     assert client.post("/v1/stock/release", json={"reservation_id": rid}).status_code == 200
     again = client.post("/v1/stock/release", json={"reservation_id": rid})
-    assert again.status_code == 409
+    # Idempotent release for cancel/retry paths
+    assert again.status_code == 200
+    assert again.json()["status"] == "released"
+
+
+def test_consume_reservation_and_idempotent(client):
+    held = client.post("/v1/stock/reserve", json={"sku": "WIDGET-1", "qty": 2})
+    assert held.status_code == 200
+    rid = held.json()["reservation_id"]
+    before = client.get("/v1/stock/WIDGET-1").json()
+    reserved_before = sum(r["reserved"] for r in before)
+    qty_before = sum(r["quantity"] for r in before)
+    ok = client.post("/v1/stock/consume", json={"reservation_id": rid})
+    assert ok.status_code == 200
+    assert ok.json()["status"] == "consumed"
+    after = client.get("/v1/stock/WIDGET-1").json()
+    assert sum(r["reserved"] for r in after) == reserved_before - 2
+    assert sum(r["quantity"] for r in after) == qty_before - 2
+    again = client.post("/v1/stock/consume", json={"reservation_id": rid})
+    assert again.status_code == 200
+    assert again.json()["status"] == "consumed"
+    # cannot release after consume
+    assert client.post("/v1/stock/release", json={"reservation_id": rid}).status_code == 409
+    # consume after release → not held
+    held3 = client.post("/v1/stock/reserve", json={"sku": "WIDGET-1", "qty": 1})
+    rid3 = held3.json()["reservation_id"]
+    assert client.post("/v1/stock/release", json={"reservation_id": rid3}).status_code == 200
+    assert client.post("/v1/stock/consume", json={"reservation_id": rid3}).status_code == 409
+    # legacy consume HTTPException path (missing)
+    assert client.post("/consume", json={"reservation_id": "nope"}).status_code == 404
+    # legacy alias happy path
+    held2 = client.post("/reserve", json={"sku": "WIDGET-1", "qty": 1})
+    rid2 = held2.json()["reservation_id"]
+    assert client.post("/consume", json={"reservation_id": rid2}).json()["status"] == "consumed"
+    assert client.post("/v1/stock/consume", json={"reservation_id": "missing"}).status_code == 404
+
+
+def test_consume_stock_inconsistent_unit():
+    """Direct service path: held reservation but reserved counter was corrupted."""
+    from sqlalchemy import select
+
+    from inventory_app import models, services
+
+    engine = create_engine(
+        "sqlite+pysqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    Base.metadata.create_all(engine)
+    Session = sessionmaker(bind=engine, autoflush=False, autocommit=False)
+    db = Session()
+    seed_demo(db)
+    res, _stock = services.reserve(db, "WIDGET-1", 1, None, None)
+    stock = db.scalar(
+        select(models.StockLevel).where(
+            models.StockLevel.sku == res.sku,
+            models.StockLevel.warehouse_id == res.warehouse_id,
+        )
+    )
+    assert stock is not None
+    stock.reserved = 0
+    db.commit()
+    with pytest.raises(services.InventoryError) as exc:
+        services.consume(db, res.id)
+    assert exc.value.code == 409
+    db.close()
 
 
 def test_transfer_same_and_unknown_warehouse(client):
