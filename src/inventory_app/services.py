@@ -79,9 +79,7 @@ def reserve(db: Session, sku: str, qty: int, warehouse_code: str | None, order_r
 
 def _get_reservation_for_update(db: Session, reservation_id: str) -> models.Reservation:
     res = db.scalar(
-        select(models.Reservation)
-        .where(models.Reservation.id == reservation_id)
-        .with_for_update()
+        select(models.Reservation).where(models.Reservation.id == reservation_id).with_for_update()
     )
     if not res:
         raise InventoryError("reservation not found", 404)
